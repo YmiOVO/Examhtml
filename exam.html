@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>练习页面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            width: 100%;
+            height: 40px;
+            background-color: rgb(134, 158, 98);
+            color: white;
+        }
+        button {
+            padding: 0 2px;
+            height: 24px;;
+            background-color: rgb(182, 244, 225);
+            border: 1px solid pink;
+        }
+        #fullscreen-btn,#upfontsize,#downfontsize,#upfont,#downfont,#fullscreen{
+            float: right;
+        }
+        #number{
+            width: 100px;
+        }
+        .pagebox{
+            width: 100%;
+            height: 100%;
+        }
+        .topone {
+            width: 50%;
+            display: inline-block;
+            text-align: center;
+        }
+        .mainbox,.wrongbox {
+            width: 85%;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: lightblue;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+            font-size: 16px;
+            transition: font-size 0 0.3s ease;
+            overflow: auto;
+            position: relative;
+        }
+        li {
+            list-style-type: none;
+        }
+        .hidden {
+            display: none;
+        }
+        .dui {
+            background-color: rgb(185, 227, 121);
+        }
+        .cuo {
+            background-color: rgb(249, 129, 129);
+        }
+        .half{
+            background-color: rgb(238, 238, 126);
+        }
+        .loadbox{
+            background-color:rgb(125, 228, 185);
+            height: 28px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <span class="topone" id="Tprac">练习</span><span class="topone" id="Twrong">错题集</span>
+    </header>
+    <main>
+        <div id="loadbox">
+            <input type="file" id="upload" />
+        </div>
+        <div id="mainbox" class="mainbox">
+            
+            <button id="fullscreen-btn">全屏</button>
+            <button id="downfontsize">&nbsp;↓&nbsp;</button>
+            <button id="upfontsize">&nbsp;↑&nbsp;</button>
+            <input type="text" placeholder="跳转题目" id="number">
+            <button id="lastrecord">滚动到上次记录</button>
+            <div class="pagebox">
+                <div id="result">
+                    <ul class="libox">
+                    </ul>
+                </div>
+            </br>
+            </div>
+        </div>
+        <div id="wrongbox" class="wrongbox">
+            <button id="outwrong">导出错题</button>
+            <button id="fullscreen">全屏</button>
+            <button id="downfont">&nbsp;↓&nbsp;</button>
+            <button id="upfont">&nbsp;↑&nbsp;</button>
+            <ul id="wrongList">
+                <li></li>
+            </ul>
+        </div>
+    </main>
+    <footer></footer>
+    <script  src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.1/xlsx.full.min.js"></script>
+    <script>
+        document.getElementById('upload').addEventListener('change', handleFile, false);//监听上传直接显示
+        let questionData = []; //获取的excel表
+        let wrongData = []; //这里指选项的错题
+        const ul =document.querySelector('.libox')
+        let currentPage =0;
+        let totalPages=0;
+        const topicSelect =document.getElementById('topic') //显示数
+        document.querySelector('.wrongbox').classList.add('hidden') //初始化wrongbox:隐藏
+//处理——读文件
+        function handleFile(event){
+                const file = event.target.files[0];
+                if (!file) {
+                    alert('Please select a file');
+                    return;
+                }
+                //使用FileReader读取文件
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const data = e.target.result;
+                    const workbook = XLSX.read(data, { type: 'binary' });
+                    //读取第一个工作表
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    // 转换工作表为JSON
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    // 读取数据
+                    for(let i=1;i<jsonData.length;i++){
+                        questionData[i]=[]
+                        questionData[i][0]=jsonData[i][0]
+                        for (let j = 1; j <= 5; j++) {
+                            questionData[i][j] = jsonData[i][j]; 
+                        }
+                        questionData[i][5] = jsonData[i][5].replace(/,/g,'').replace(/\s+/g, '').split('').filter(Boolean);
+                        questionData[i][6] = 0
+                    // 显示读取的数据
+                    const li = document.createElement('li')
+                    li.innerHTML = `
+                        <h3 id="${i}">题目${i}: ${questionData[i][0]}</h3>
+                        <ul >
+                            <li id="1${i}"><button onclick="Acheck(${i},'A',this)" >${questionData[i][1]}</button></li>
+                            <li id="2${i}"><button onclick="Acheck(${i},'B',this)" >${questionData[i][2]}</button></li>
+                            <li id="3${i}"><button onclick="Acheck(${i},'C',this)" >${questionData[i][3]}</button></li>
+                            <li id="4${i}"><button onclick="Acheck(${i},'D',this)" >${questionData[i][4]}</button></li>
+                        </ul>
+                    `;
+                    ul.append(li)
+                    }
+                };
+                reader.readAsBinaryString(file);
+            }
+//处理——错题陈列
+        function wrongplace() {
+            const wrongList = document.getElementById('wrongList');
+            wrongList.innerHTML = ''; // 清空之前的错题列表
+            for (let i of wrongData) {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <h3>题目${i}: ${questionData[i][0]}</h3>
+                    <ul id="option${i}">
+                        <li id="1${i}"><button onclick="Acheck(${i},'A',this)">${questionData[i][1]}</button></li>
+                        <li id="2${i}"><button onclick="Acheck(${i},'B',this)">${questionData[i][2]}</button></li>
+                        <li id="3${i}"><button onclick="Acheck(${i},'C',this)">${questionData[i][3]}</button></li>
+                        <li id="4${i}"><button onclick="Acheck(${i},'D',this)">${questionData[i][4]}</button></li>
+                    </ul>
+                `;
+                wrongList.appendChild(li);
+            }
+        }
+//处理——判题——正确后不会能再选错
+        function Acheck(Qindex,Aoption,thisbutton) {     //Qindex等同循环中的i，Aoption等同选择的选项
+                if(questionData[Qindex][5].includes(Aoption)){
+                    if(questionData[Qindex][5].length === 1){
+                        thisbutton.classList.add("dui")
+                        for(let i=1;i<5;i++){
+                            document.getElementById(`${i}${Qindex}`).querySelector('button').style.pointerEvents = "none";
+                        }
+                    }
+                    else{
+                        thisbutton.classList.add("half")
+                        questionData[Qindex][6]++
+                        if(questionData[Qindex][6]===questionData[Qindex][5].length){
+                            thisbutton.classList.remove("half")
+                            thisbutton.classList.add("dui")
+                            questionData[Qindex][6]=0
+                            for(let i=1;i<5;i++){
+                            document.getElementById(`${i}${Qindex}`).querySelector('button').style.pointerEvents = "none";
+                            }
+                        }
+                    }
+                }
+                else{
+                    thisbutton.classList.add("cuo")
+                   
+                    if(!wrongData.includes(Qindex)){
+                        wrongData.push(Qindex)
+                    }
+                    
+                }
+            }
+//功能——跳转题目
+        document.getElementById('number').addEventListener('change', function() {
+            // 监听input框内容变化
+            const targetId = document.getElementById('number').value;  // 获取输入的ID
+            scrollToElement(targetId);  // 调用滚动到目标位置的函数
+        });
+        function scrollToElement(id) {
+            const targetElement = document.getElementById(id);
+            if (targetElement) {
+                targetElement.scrollIntoView({ behavior: 'smooth' });  // 平滑滚动到目标元素
+            } else {
+                alert('目标ID不存在，请检查输入！');
+            }
+        }
+//功能——跳转上次滚动位置
+        window.addEventListener('scroll', function() {
+            const scrollPosition = window.scrollY || document.documentElement.scrollTop;
+            localStorage.setItem('scrollPosition', scrollPosition);
+        });
+        window.addEventListener('load', function() {
+            const savedScrollPosition = localStorage.getItem('scrollPosition');
+            if (savedScrollPosition) {
+                window.scrollTo(0, savedScrollPosition);
+            }
+        });
+        document.getElementById('lastrecord').addEventListener('click', function() {
+            const savedScrollPosition = localStorage.getItem('scrollPosition');
+            if (savedScrollPosition) {
+                window.scrollTo(0, savedScrollPosition);
+            }
+        });
+//功能——错题&练习&考试切换
+        document.getElementById('Tprac').addEventListener('click',function(){
+            document.querySelector('.wrongbox').classList.add('hidden')
+            document.querySelector('.mainbox').classList.remove('hidden')
+        })
+        document.getElementById('Twrong').addEventListener('click',function(){
+            document.querySelector('.mainbox').classList.add('hidden')
+            document.querySelector('.wrongbox').classList.remove('hidden')
+            wrongplace()
+        })
+//功能——字体大小 
+        document.getElementById('downfontsize').addEventListener('click', function() {
+        let mainbox = document.getElementById('mainbox');
+        let currentSize = window.getComputedStyle(mainbox).fontSize;
+        let newSize = parseFloat(currentSize) - 2; // 减少2px
+            mainbox.style.fontSize = newSize + 'px';
+        });
+        document.getElementById('upfontsize').addEventListener('click', function() {
+        let mainbox = document.getElementById('mainbox');
+        let currentSize = window.getComputedStyle(mainbox).fontSize;
+        let newSize = parseFloat(currentSize) + 2; // 增加2px
+            mainbox.style.fontSize = newSize + 'px';
+        });
+        document.getElementById('downfont').addEventListener('click', function() {
+            let wrongbox = document.getElementById('wrongbox');
+            let currentSize = window.getComputedStyle(wrongbox).fontSize;
+            let newSize = parseFloat(currentSize) - 2; // 减少2px
+            wrongbox.style.fontSize = newSize + 'px';
+        }); 
+        document.getElementById('upfont').addEventListener('click', function() {
+            let wrongbox = document.getElementById('wrongbox');
+            let currentSize = window.getComputedStyle(wrongbox).fontSize;
+            let newSize = parseFloat(currentSize) + 2; // 增加2px
+            wrongbox.style.fontSize = newSize + 'px';
+        });
+//功能——全屏
+        document.getElementById('fullscreen-btn').addEventListener('click', function() {
+            let mainbox = document.getElementById('mainbox');
+
+            if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) { 
+                if (mainbox.requestFullscreen) {
+                    mainbox.requestFullscreen();
+                } else if (mainbox.webkitRequestFullscreen) { 
+                    mainbox.webkitRequestFullscreen();
+                } else if (mainbox.mozRequestFullScreen) { 
+                    mainbox.mozRequestFullScreen();
+                } else if (mainbox.msRequestFullscreen) { 
+                    mainbox.msRequestFullscreen();
+                }
+            } else {  
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) { 
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) { 
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) { 
+                    document.msExitFullscreen();
+                }
+            }
+        });   
+        document.getElementById('fullscreen').addEventListener('click', function() {
+            let wrongbox = document.getElementById('wrongbox');
+                
+            if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) { 
+                if (wrongbox.requestFullscreen) {
+                    wrongbox.requestFullscreen();
+                } else if (wrongbox.webkitRequestFullscreen) { 
+                    wrongbox.webkitRequestFullscreen();
+                } else if (wrongbox.mozRequestFullScreen) { 
+                    wrongbox.mozRequestFullScreen();
+                } else if (wrongbox.msRequestFullscreen) { 
+                    wrongbox.msRequestFullscreen();
+                }
+            } else {  
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) { 
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) { 
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) { 
+                    document.msExitFullscreen();
+                }
+            }
+        });
+//功能——准备错题集,导出错题
+        document.getElementById('outwrong').addEventListener('click', function() {
+            const wb = XLSX.utils.book_new();
+
+            // 直接根据 wrongData 获取题目数据
+            const wrongQuestions = wrongData.map(index => {
+                // 索引是从 1 开始的，减去 1 转换为从 0 开始的索引
+                const correctIndex = index ; 
+                if (questionData[correctIndex]) {
+                    const question = questionData[correctIndex];
+                    return [
+                        question[0],  // 第0位：问题
+                        ...question.slice(1, 5), // 第1到第4位：选项
+                        question[5]   // 第5位：答案
+                    ];
+                }
+                return []; // 如果索引无效，返回空数组
+            });
+            if (wrongQuestions.length > 0) {
+                const headers = ['问题', '选项A', '选项B', '选项C', '选项D', '答案'];
+                wrongQuestions.unshift(headers);
+                const ws = XLSX.utils.aoa_to_sheet(wrongQuestions);
+                XLSX.utils.book_append_sheet(wb, ws, "错题集");
+                XLSX.writeFile(wb, "错题集.xlsx");
+            } else {
+                console.log("没有错题数据，无法导出！");
+            }
+        });
+    </script>
+</body>
+</html>
